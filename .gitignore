@@ -1,0 +1,31 @@
+# --- OS System Files ---
+.DS_Store
+Thumbs.db
+
+# --- Python & Virtual Environments ---
+# This stops "library attachments" and venv files from being tracked
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+
+# --- IDE Settings (Optional but recommended) ---
+.vscode/
+.idea/
+
+# --- Data Artifacts ---
+# You generally don't want to track the output data if it changes often
+# or if you want to keep the repo code-focused.
+*.csv
+
+# --- SECURITY (CRITICAL) ---
+# If you move your keys to a separate file (recommended), ignore it here.
+config.py
+secrets.py
+.env
+bin/
+lib/
+*.cfg
