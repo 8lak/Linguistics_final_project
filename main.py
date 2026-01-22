@@ -1,123 +1,109 @@
-import praw
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
-from datetime import datetime
+import numpy as np
 
 # ==========================================
-# CONFIGURATION
+# 1. DATA RECONSTRUCTION
 # ==========================================
-# Replace these with the keys you generated in Part 1
-CLIENT_ID = 'YOUR_CLIENT_ID_HERE'
-CLIENT_SECRET = 'YOUR_CLIENT_SECRET_HERE'
-USER_AGENT = 'python:CorpusBuilder:v1.0 (by /u/YourRedditUsername)'
+# We manually reconstruct your results into DataFrames
+# based on the data you provided.
 
-# Target Definition
-TARGETS = {
-    "Canonical": {
-        "query": '"how the tables have turned"',
-        "limit": 75
-    },
-    "Metathesized": {
-        "query": '"how the turn tables"',
-        "limit": 75
-    }
+# --- Syntax Data ---
+data_syntax = {
+    'Category': ['Embedded', 'Fragment', 'Standalone'],
+    'Canonical': [4.95, 0.00, 95.05],
+    'Metathesized': [0.00, 1.04, 98.96]
 }
+df_syntax = pd.DataFrame(data_syntax)
 
-OUTPUT_FILENAME = 'turn_tables_corpus.csv'
+# --- Tone Data ---
+data_tone = {
+    'Category': ['Gloating', 'Humorous/Meme', 'Serious/Narrative'],
+    'Canonical': [31.68, 60.40, 7.92],
+    'Metathesized': [12.50, 84.38, 3.12]
+}
+df_tone = pd.DataFrame(data_tone)
+
+# --- Context Data ---
+data_context = {
+    'Category': ['Fandom/TV', 'Finance/Crypto', 'Gaming', 'General', 
+                 'Personal/Rel.', 'Politics', 'Sports'],
+    'Canonical': [9.90, 1.98, 26.73, 38.61, 4.95, 9.90, 7.92],
+    'Metathesized': [16.67, 3.12, 14.58, 35.42, 5.21, 13.54, 11.46]
+}
+df_context = pd.DataFrame(data_context)
 
 # ==========================================
-# INITIALIZATION
+# 2. PLOTTING CONFIGURATION
 # ==========================================
-def init_reddit():
-    """Initialize PRAW instance."""
-    return praw.Reddit(
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        user_agent=USER_AGENT
-    )
+# Set a professional academic theme
+sns.set_theme(style="whitegrid")
+palette = ["#34495e", "#e74c3c"] # Dark Blue (Canonical) vs Red (Metathesized)
 
-def collect_data():
-    reddit = init_reddit()
-    dataset = []
+def create_chart(df, title, filename, figure_size=(10, 6)):
+    """
+    Generates a grouped bar chart with data labels.
+    """
+    # Convert from "Wide" to "Long" format for Seaborn
+    df_melted = df.melt(id_vars='Category', var_name='Phrase Type', value_name='Percentage')
     
-    # Safety Check: Set to track unique IDs to prevent duplicates
-    # Reddit IDs are globally unique (e.g., "t3_x5y6z")
-    unique_ids = set()
-
-    print(f"--- Starting Extraction for Project: How the Turn Tables ---")
-
-    for label, config in TARGETS.items():
-        print(f"\nProcessing Phrase Type: {label} ({config['query']})")
-        count = 0
-        
-        # We search "all" subreddits to get the widest discourse
-        # sort='new' gets the most recent discourse
-        search_results = reddit.subreddit("all").search(
-            config['query'], 
-            sort='relevance', 
-            limit=None,
-            syntax='plain' # Ensures we look for the exact string phrase
-        )
-
-        for submission in search_results:
-            if count >= config['limit']:
-                break
-            
-            # 1. Safety Check: Duplicate Detection
-            if submission.id in unique_ids:
-                continue
-
-            # 2. Context Construction
-            # We combine Title and Selftext to ensure we capture the phrase
-            # regardless of where it appears in the post.
-            full_text = f"{submission.title} \n {submission.selftext}"
-            
-            # Simple check to ensure the phrase is actually in the text 
-            # (Search sometimes returns fuzzy matches)
-            clean_query = config['query'].replace('"', '').lower()
-            if clean_query not in full_text.lower():
-                continue
-
-            # 3. Data Schema Mapping
-            entry = {
-                'ID': submission.id,
-                'Source': f"r/{submission.subreddit.display_name}",
-                'Date': datetime.utcfromtimestamp(submission.created_utc).strftime('%Y-%m-%d %H:%M:%S'),
-                'Phrase_Type': label,
-                'Full_Text': full_text.strip(),
-                'URL': f"https://www.reddit.com{submission.permalink}"
-            }
-
-            dataset.append(entry)
-            unique_ids.add(submission.id)
-            count += 1
-            
-            if count % 10 == 0:
-                print(f"  -> Collected {count}/{config['limit']} instances...")
-
-    return dataset
+    plt.figure(figsize=figure_size)
+    
+    # Create the Bar Plot
+    ax = sns.barplot(
+        data=df_melted, 
+        x='Category', 
+        y='Percentage', 
+        hue='Phrase Type',
+        palette=palette,
+        edgecolor="black" # Adds a crisp border
+    )
+    
+    # Add Titles and Labels
+    plt.title(title, fontsize=16, fontweight='bold', pad=20)
+    plt.ylabel("Frequency (%)", fontsize=12)
+    plt.xlabel("", fontsize=12)
+    plt.ylim(0, 105) # Give space for top labels
+    
+    # Add Percentage Labels on top of bars
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%.1f%%', padding=3, fontsize=10)
+    
+    # Adjust Layout
+    plt.legend(title='Phrase Type', loc='upper right')
+    plt.tight_layout()
+    
+    # Save
+    plt.savefig(filename, dpi=300)
+    print(f"Generated: {filename}")
+    plt.show()
 
 # ==========================================
-# EXECUTION
+# 3. GENERATE PLOTS
 # ==========================================
-if __name__ == "__main__":
-    try:
-        data = collect_data()
-        
-        # Convert to DataFrame and Save
-        df = pd.DataFrame(data)
-        
-        # Reordering columns to match your exact schema requirement
-        df = df[['ID', 'Source', 'Date', 'Phrase_Type', 'Full_Text', 'URL']]
-        
-        df.to_csv(OUTPUT_FILENAME, index=False)
-        
-        print(f"\nSUCCESS: Corpus built with {len(df)} total records.")
-        print(f"Data saved to: {OUTPUT_FILENAME}")
-        
-        # Verification of counts
-        print("\nDistribution:")
-        print(df['Phrase_Type'].value_counts())
-        
-    except Exception as e:
-        print(f"CRITICAL ERROR: {e}")
-        print("Please check your API credentials and internet connection.")
+
+print("--- Generating Visualizations ---")
+
+# 1. Syntax Distribution
+create_chart(
+    df_syntax, 
+    "Syntactic Distribution: Canonical vs. Metathesized", 
+    "graph_syntax.png"
+)
+
+# 2. Tone Distribution
+create_chart(
+    df_tone, 
+    "Semantic Tone: The Shift to Humor", 
+    "graph_tone.png"
+)
+
+# 3. Context Distribution
+# (Slightly larger size to fit the many categories)
+create_chart(
+    df_context, 
+    "Contextual Domain Distribution", 
+    "graph_context.png",
+    figure_size=(12, 6)
+)
