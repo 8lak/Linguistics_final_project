@@ -20,4 +20,4 @@ How has the metathesized form *"how the turn tables"* evolved from a humorous er
 - **Domain Specificity:** Political communities prefer the meme form (satirical frame), while gaming communities prefer the canonical form (literal victory).
 
 ## Research Paper
-[Link to PDF relative to this repo, e.g., `docs/Meme_Grammaticalization_Paper.pdf`]
+[Link to PDF](Final_paper.pdf)
